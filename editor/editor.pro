@@ -13,9 +13,11 @@ SOURCES += \
   server_api.cpp \
   ui2oh.cpp \
   xml_feature.cpp \
+  osm_oauth.cpp \
 
 HEADERS += \
   opening_hours_ui.hpp \
   server_api.hpp \
   ui2oh.hpp \
   xml_feature.hpp \
+  osm_oauth.hpp \
