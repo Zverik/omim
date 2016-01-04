@@ -14,13 +14,12 @@ namespace osm
 
 namespace
 {
-  string const kOSMSessionCookie = "_osm_session";
-  string const kOSMUserNameCookie = "_osm_username";
+string const kOSMSessionCookie = "_osm_session";
 
 string findAuthenticityToken(const string & body)
 {
   string value;
-  int pos = body.find("name=\"authenticity_token\"");
+  auto pos = body.find("name=\"authenticity_token\"");
   if (pos == string::npos)
     return value;
   pos = body.find("value=", pos);
@@ -34,103 +33,95 @@ string findAuthenticityToken(const string & body)
   return value;
 }
 
-string buildPostRequest(const map<string, string> & params)
+string buildPostRequest(map<string, string> const & params)
 {
-  string result = "";
-  bool first = true;
-  for (std::pair<string, string> kv : params)
+  string result;
+  for (auto it = params.begin(); it != params.end(); ++it)
   {
-    if (first)
-      first = false;
-    else
-      result += '&';
-    result += kv.first + '=' + UrlEncode(kv.second);
+    if (it != params.begin())
+      result += "&";
+    result += it->first + "=" + UrlEncode(it->second);
   }
   return result;
 }
-
-struct SessionID
-{
-  string id;
-  string token;
-};
+}  // namespace
 
 // Opens a login page and extract a cookie and a secret token.
-bool fetchSessionId(SessionID & sid)
+bool OsmOAuth::FetchSessionId(OsmOAuth::SessionID & sid)
 {
   HTTPClientPlatformWrapper request(m_baseUrl + "/login?cookie_test=true");
   if (!(request.RunHTTPRequest() && request.error_code() == 200))
     return false;
-  sid.id = request.cookie_by_name(kOSMSessionCookie);
-  sid.token = findAuthenticityToken(request.server_response());
-  return !sid.id.empty() && !sid.token.empty();
+  sid.m_id = request.cookie_by_name(kOSMSessionCookie);
+  sid.m_token = findAuthenticityToken(request.server_response());
+  return !sid.m_id.empty() && !sid.m_token.empty();
 }
 
 // Log a user out.
-bool logoutUser(SessionID & sid)
+bool OsmOAuth::LogoutUser(SessionID & sid)
 {
   HTTPClientPlatformWrapper request(m_baseUrl + "/logout");
-  request.set_cookies(kOSMSessionCookie + "=" + sid.id);
+  request.set_cookies(kOSMSessionCookie + "=" + sid.m_id);
   request.RunHTTPRequest(); // we don't care for the result.
   return true;
 }
 
 // Signs a user id using login and password.
-bool loginUserPassword(string const & login, string const & password, SessionID & sid)
+bool OsmOAuth::LoginUserPassword(string const & login, string const & password, SessionID & sid)
 {
   map<string, string> params;
   params["username"] = login;
   params["password"] = password;
   params["referer"] = "/";
   params["commit"] = "Login";
-  params["authenticity_token"] = sid.token;
+  params["authenticity_token"] = sid.m_token;
   HTTPClientPlatformWrapper request(m_baseUrl + "/login");
   request.set_body_data(buildPostRequest(params), "application/x-www-form-urlencoded");
-  request.set_cookies(kOSMSessionCookie + "=" + sid.id);
+  request.set_cookies(kOSMSessionCookie + "=" + sid.m_id);
   if (!(request.RunHTTPRequest() && request.error_code() == 200 && request.was_redirected()))
     return false;
   return true;
 }
 
 // Signs a user in using a facebook token.
-bool loginFacebook(string const & facebookToken, SessionID & sid)
+bool OsmOAuth::LoginFacebook(string const & facebookToken, SessionID & sid)
 {
-  string const url = m_baseUrl + "/auth/facebook_access_token/callback?access_token=" + facebook_access_token;
+  string const url = m_baseUrl + "/auth/facebook_access_token/callback?access_token=" + facebookToken;
   HTTPClientPlatformWrapper request(url);
-  request.set_cookies(kOSMSessionCookie + "=" + sid.id);
+  request.set_cookies(kOSMSessionCookie + "=" + sid.m_id);
   if (!(request.RunHTTPRequest() && request.error_code() == 200 && request.was_redirected()))
     return false;
   return true;
 }
 
 // Fakes a buttons press, so a user accepts requested permissions.
-string sendAuthRequest(string const & requestTokenKey, SessionID & sid)
+string OsmOAuth::SendAuthRequest(string const & requestTokenKey, SessionID & sid)
 {
   map<string, string> params;
   params["oauth_token"] = requestTokenKey;
   params["oauth_callback"] = "";
-  params["authenticity_token"] = sid.token;
+  params["authenticity_token"] = sid.m_token;
   params["allow_read_prefs"] = "yes";
   params["allow_write_api"] = "yes";
   params["commit"] = "Save changes";
   HTTPClientPlatformWrapper request(m_baseUrl + "/oauth/authorize");
   request.set_body_data(buildPostRequest(params), "application/x-www-form-urlencoded");
-  request.set_cookies(kOSMSessionCookie + "=" + sid.id);
+  request.set_cookies(kOSMSessionCookie + "=" + sid.m_id);
 
   if (!request.RunHTTPRequest())
     return string();
 
-  string callbackURL = request.url_received();
+  string const callbackURL = request.url_received();
   string const vKey = "oauth_verifier=";
-  auto pos = callbackURL.find(vKey);
+  auto const pos = callbackURL.find(vKey);
   if (pos == string::npos)
     return string();
-  auto end = callbackURL.find("&", pos);
+  auto const end = callbackURL.find("&", pos);
   return callbackURL.substr(pos + vKey.length(), end == string::npos ? end : end - pos - vKey.length()+ 1);
 }
 
 // Given a web session id, fetches an OAuth access token.
-int fetchAccessToken(SessionID & sid, ClientToken & token)
+OsmOAuth::AuthResult OsmOAuth::FetchAccessToken(SessionID & sid, ClientToken & token)
 {
   // Aquire a request token.
   OAuth::Consumer consumer(m_consumerKey, m_consumerSecret);
@@ -143,7 +134,7 @@ int fetchAccessToken(SessionID & sid, ClientToken & token)
   OAuth::Token requestToken = OAuth::Token::extract(request.server_response());
   
   // Faking a button press for access rights.
-  string pin = sendAuthRequest(requestToken.key(), sid);
+  string const pin = SendAuthRequest(requestToken.key(), sid);
   if (pin.empty())
     return OsmOAuth::AuthResult::FailAuth;
   requestToken.setPin(pin);
@@ -158,51 +149,50 @@ int fetchAccessToken(SessionID & sid, ClientToken & token)
   OAuth::KeyValuePairs responseData = OAuth::ParseKeyValuePairs(request2.server_response());
   OAuth::Token accessToken = OAuth::Token::extract(responseData);
 
-  token.key = accessToken.key();
-  token.secret = accessToken.secret();
+  token.m_key = accessToken.key();
+  token.m_secret = accessToken.secret();
 
-  logoutUser(sid);
+  LogoutUser(sid);
   
   return OsmOAuth::AuthResult::OK;
 }
-}  // namespace
 
-int OsmOAuth::AuthorizePassword(string const & login, string const & password, ClientToken & token)
+OsmOAuth::AuthResult OsmOAuth::AuthorizePassword(string const & login, string const & password, ClientToken & token)
 {
   SessionID sid;
-  if (!fetchSessionId(sid))
+  if (!FetchSessionId(sid))
     return OsmOAuth::AuthResult::FailCookie;
 
-  if (!loginUserPassword(login, password, sid))
+  if (!LoginUserPassword(login, password, sid))
     return OsmOAuth::AuthResult::FailLogin;
 
-  return fetchAccessToken(sid, token);
+  return FetchAccessToken(sid, token);
 }
 
-int OsmOAuth::AuthorizeFacebook(string const & facebookToken, ClientToken & token)
+OsmOAuth::AuthResult OsmOAuth::AuthorizeFacebook(string const & facebookToken, ClientToken & token)
 {
   SessionID sid;
-  if (!fetchSessionId(sid))
+  if (!FetchSessionId(sid))
     return OsmOAuth::AuthResult::FailCookie;
 
-  if (!loginFacebook(facebookToken, sid))
+  if (!LoginFacebook(facebookToken, sid))
     return OsmOAuth::AuthResult::FailLogin;
 
-  return fetchAccessToken(sid, token);
+  return FetchAccessToken(sid, token);
 }
 
-string OsmOAuth::Request(ClientToken & token, string const & method, string const & httpMethod = "GET", string const & body = "")
+string OsmOAuth::Request(ClientToken const & token, string const & method, string const & httpMethod, string const & body) const
 {
   // TODO(@zverik): Support other http methods
-  OAuth::Consumer consumer(m_consumerKey, m_consumerSecret);
-  OAuth::Token oatoken(token.key, token.secret);
+  OAuth::Consumer const consumer(m_consumerKey, m_consumerSecret);
+  OAuth::Token const oatoken(token.m_key, token.m_secret);
   OAuth::Client oauth(&consumer, &oatoken);
 
-  string url = m_apiUrl + method;
-  string query = oauth.getURLQueryString(OAuth::Http::Get, url);
+  string const url = m_apiUrl + kApiVersion + method;
+  string const query = oauth.getURLQueryString(OAuth::Http::Get, url);
 
   HTTPClientPlatformWrapper request(url + "?" + query);
-  if (request.RunHTTPRequest() && request.error_code() == 200)
+  if (request.RunHTTPRequest() && request.error_code() == 200 && !request.was_redirected())
     return request.server_response();
 
   return string();

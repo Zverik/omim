@@ -18,4 +18,4 @@ SOURCES += \
     server_api_test.cpp \
     xml_feature_test.cpp \
     ui2oh_test.cpp \
-    osm_oauth_test.cpp \
+    osm_auth_test.cpp \
