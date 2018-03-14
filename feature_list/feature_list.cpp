@@ -250,7 +250,7 @@ public:
     string const & denomination = f.GetMetadata().Get(feature::Metadata::FMD_DENOMINATION);
     string const & wheelchair = GetWheelchairType(f);
     string const & opening_hours = f.GetMetadata().Get(feature::Metadata::FMD_OPEN_HOURS);
-    string const & wikipedia = f.GetMetadata().Get(feature::Metadata::FMD_WIKIPEDIA);
+    string const & wikipedia = f.GetMetadata().GetWikiURL();
     string const & floor = f.GetMetadata().Get(feature::Metadata::FMD_LEVEL);
     string const & fee = strings::EndsWith(category, "-fee") ? "yes" : "";
     string const & atm = HasAtm(f) ? "yes" : "";
@@ -311,7 +311,7 @@ int main(int argc, char ** argv)
   if (argc > 2)
   {
     pl.SetResourceDir(argv[2]);
-    countriesFile = my::JoinFoldersToPath(argv[2], COUNTRIES_FILE);
+    countriesFile = my::JoinPath(argv[2], COUNTRIES_FILE);
   }
 
   storage::Storage storage(countriesFile, argv[1]);
@@ -347,7 +347,7 @@ int main(int argc, char ** argv)
     if (argc > 3 && !strings::StartsWith(mwmInfo->GetCountryName() + DATA_FILE_EXTENSION, argv[3]))
       continue;
     LOG(LINFO, ("Processing", mwmInfo->GetCountryName()));
-    string osmToFeatureFile = my::JoinFoldersToPath(
+    string osmToFeatureFile = my::JoinPath(
         argv[1], mwmInfo->GetCountryName() + DATA_FILE_EXTENSION + OSM2FEATURE_FILE_EXTENSION);
     map<uint32_t, osm::Id> featureIdToOsmId;
     ParseFeatureIdToOsmIdMapping(osmToFeatureFile, featureIdToOsmId);
