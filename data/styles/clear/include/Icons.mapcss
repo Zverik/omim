@@ -2618,6 +2618,17 @@ node|z18-[sponsored=partner2],
 area|z18-[sponsored=partner2]
 {font-size: 11;}
 
+node|z14-[sponsored=partner4], area|z14-[sponsored=partner4],
+node|z14-[sponsored=partner5], area|z14-[sponsored=partner5],
+node|z14-[sponsored=partner6], area|z14-[sponsored=partner6],
+node|z14-[sponsored=partner7], area|z14-[sponsored=partner7],
+node|z14-[sponsored=partner8], area|z14-[sponsored=partner8],
+node|z14-[sponsored=partner9], area|z14-[sponsored=partner9],
+node|z14-[sponsored=partner10], area|z14-[sponsored=partner10],
+node|z14-[sponsored=partner11], area|z14-[sponsored=partner11],
+node|z14-[sponsored=partner12], area|z14-[sponsored=partner12],
+{icon-image: partner2-l.svg;font-size: 10;text: name;text-color: @poi_label;text-offset: 1;}
+
 node|z13-[event=fc2018],
 area|z13-[event=fc2018]
 {font-size: 10;text: name;text-color: @poi_label;text-offset: 1;}
@@ -2646,4 +2657,8 @@ area|z15-[event=fc2018][olympics=live_site]
 
 node|z15-[event=fc2018][shop=gift],
 area|z15-[event=fc2018][shop=gift]
+{icon-image: wfc_shop.svg;icon-min-distance: 10;}
+
+node|z15-[event=fc2018][olympics=transport_bus],
+area|z15-[event=fc2018][olympics=transport_bus]
 {icon-image: wfc_shop.svg;icon-min-distance: 10;}
